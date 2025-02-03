@@ -46,7 +46,7 @@ firebase.auth().onAuthStateChanged((user) => {
     }
 });
 
-const apiKey = '74d761a4a30b02c9c5530d3e03c605d0925c159fd29f4dff11983780d5c06ab4';
+const apiKey = '42688eee6fba686b21d7cea2865b4c36677be8b830aaef7aeae6ce923fc548e5';
 const jobContainer = document.getElementById('jobContainer');
 const searchBar = document.getElementById('searchBar');
 
@@ -86,6 +86,47 @@ function shuffleArray(array) {
     return array;
 }
 
+// In the displayJobs function, modify the button onclick to use encodeURIComponent:
+function applyJob(jobUrl, button) {
+    // Get the job card data
+    const jobCard = button.closest('.job-card');
+    const domain = jobCard.querySelector('p').textContent.replace('Domain: ', '');
+    
+    // If URL is null or invalid, construct domain URL
+    let redirectUrl = jobUrl;
+    if (!jobUrl || jobUrl === 'undefined') {
+        redirectUrl = `https://${domain}`;
+    }
+
+    const jobData = {
+        title: jobCard.querySelector('h3').textContent,
+        website_name: domain,
+        city: jobCard.querySelectorAll('p')[1].textContent.replace('City: ', ''),
+        url: redirectUrl,
+        status: 'applied',
+        appliedDate: new Date().toISOString()
+    };
+    
+    console.log('Saving job application:', jobData);
+    
+    // Save to localStorage
+    let savedApplications = JSON.parse(localStorage.getItem('jobApplications')) || [];
+    if (!savedApplications.some(app => app.url === redirectUrl)) {
+        savedApplications.push(jobData);
+        localStorage.setItem('jobApplications', JSON.stringify(savedApplications));
+        console.log('Updated applications:', savedApplications);
+    }
+    
+    // Update button appearance
+    button.textContent = 'Applied!';
+    button.style.backgroundColor = 'green';
+    button.disabled = true;
+    
+    // Open the URL
+    window.open(redirectUrl, '_blank');
+}
+
+// Update displayJobs function to handle potential null URLs
 function displayJobs(jobs) {
     jobContainer.innerHTML = '';
     jobs.forEach(job => {
@@ -95,13 +136,16 @@ function displayJobs(jobs) {
         // Check if the job has already been applied to
         const alreadyApplied = hasApplied(job.url);
         
+        // Encode the URL if it exists, otherwise use empty string
+        const encodedUrl = job.url ? encodeURIComponent(job.url) : '';
+        
         jobCard.innerHTML = `
             <div class="job-info">
                 <h3>${job.title}</h3>
                 <p>Domain: ${job.website_name || 'Not specified'}</p>
                 <p>City: ${job.city || 'Not specified'}</p>
                 <p style="color: green;" class="status-paragraph">Status: ${job.status || 'Not specified'}</p>
-                <button class="apply-btn" onclick="applyJob('${job.url}', this)" 
+                <button class="apply-btn" data-url="${encodedUrl}" 
                     ${alreadyApplied ? 'disabled' : ''}>
                     ${alreadyApplied ? 'Applied!' : 'Apply'}
                 </button>
@@ -113,39 +157,15 @@ function displayJobs(jobs) {
             applyBtn.style.backgroundColor = 'green';
         }
         
+        // Add click event listener
+        const applyBtn = jobCard.querySelector('.apply-btn');
+        applyBtn.addEventListener('click', function() {
+            const url = this.dataset.url ? decodeURIComponent(this.dataset.url) : null;
+            applyJob(url, this);
+        });
+        
         jobContainer.appendChild(jobCard);
     });
-}
-
-function applyJob(jobUrl, button) {
-    // Get the job card data
-    const jobCard = button.closest('.job-card');
-    const jobData = {
-        title: jobCard.querySelector('h3').textContent,
-        website_name: jobCard.querySelector('p').textContent.replace('Domain: ', ''),
-        city: jobCard.querySelectorAll('p')[1].textContent.replace('City: ', ''),
-        url: jobUrl,
-        status: 'applied',
-        appliedDate: new Date().toISOString() // Add application date
-    };
-    
-    console.log('Saving job application:', jobData); // Debug log
-    
-    // Save to localStorage
-    let savedApplications = JSON.parse(localStorage.getItem('jobApplications')) || [];
-    if (!savedApplications.some(app => app.url === jobUrl)) {
-        savedApplications.push(jobData);
-        localStorage.setItem('jobApplications', JSON.stringify(savedApplications));
-        console.log('Updated applications:', savedApplications); // Debug log
-    }
-    
-    // Update button appearance
-    button.textContent = 'Applied!';
-    button.style.backgroundColor = 'green';
-    button.disabled = true;
-    
-    // Open job URL in new tab
-    window.open(jobUrl, '_blank');
 }
 
 searchBar.addEventListener('input', (e) => {
